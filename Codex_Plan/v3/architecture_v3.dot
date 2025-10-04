@@ -1,0 +1,84 @@
+digraph TelegramImageBotV3 {
+  rankdir=LR;
+  splines=true;
+  bgcolor="white";
+  fontname="Helvetica";
+
+  node [shape=box, style="rounded", fontname="Helvetica", fontsize=10, color="#777777"];
+
+  // Client
+  subgraph cluster_client {
+    label="Client";
+    color="#DDDDDD";
+    style="rounded";
+    tg [label="Telegram Bot\n(/start • /generate • /edit)"];
+  }
+
+  // Orchestrator
+  subgraph cluster_orch {
+    label="Mini Orchestrator (FastAPI)";
+    color="#C7DBFF";
+    style="rounded";
+    webhook [label="Webhook & Command Router\n/telegram/webhook"];
+    idem [label="Idempotency & Rate Limits\n(dedupe update_id • allowlist • caps)", style="rounded,dashed", color="#7A9CE6"];
+    policy [label="Backend Params & Policy\n(defaults • clamps)", style="rounded,dashed", color="#7A9CE6"];
+    queue [label="Job Queue\n(background workers)"];
+    jobstore [label="Job Store\n(states • timings • errors)"];
+    media [label="Telegram Media Fetcher\n(file_id → getFile → trusted URL)\nSSRF guard"];
+    mapper [label="Provider Mapper\n(normalized → vendor)"];
+    deliver [label="Result Delivery\nsendPhoto • mediaGroup • document"];
+  }
+
+  // Providers
+  subgraph cluster_providers {
+    label="Model Services";
+    color="#DDDDDD";
+    style="rounded";
+    replicate [label="Replicate\nFLUX-LoRA (Generate)"];
+    fal [label="fal.ai\nnano-banana (Edit)"];
+  }
+
+  // Optional extensions
+  subgraph cluster_extend {
+    label="Extend later (optional)";
+    color="#DDDDDD";
+    style="dashed,rounded";
+    storage [label="Storage / CDN\n(S3 • Cloudinary)", style="rounded,dashed"];
+  }
+
+  logs [label="Logs & Metrics\n(job_id • latency • retries • errors • cost est.)", style="rounded,dashed", color="#AAAAAA"];
+
+  // Client ↔ Orchestrator
+  tg -> webhook [label="message / photo", color="#495567"];
+  webhook -> tg [label="ack: 'Working…'", color="#495567", style="dashed"];
+
+  // Request path & guardrails
+  webhook -> idem [style="dotted", color="#7A9CE6", label="dedupe/allowlist/caps"];
+  idem -> queue [label="enqueue job", color="#6B7784"];
+  idem -> policy [style="dotted", color="#7A9CE6"];
+
+  // Background execution
+  queue -> jobstore [label="update state", style="dotted", color="#6B7784"];
+  queue -> mapper [label="process job", color="#6B7784"];
+  queue -> media [label="resolve image (edit)", style="dotted", color="#6B7784"];
+
+  // Provider calls via mapper
+  mapper -> replicate [label="prompt + backend params", color="#2FA24C", penwidth=2];
+  mapper -> fal [label="image + instruction + backend params", color="#2196F3", penwidth=2];
+
+  // Results back
+  replicate -> deliver [label="image URL(s)", color="#2FA24C", style="dotted"];
+  fal -> deliver [label="edited image(s)", color="#2196F3", style="dotted"];
+  deliver -> tg [label="sendPhoto / mediaGroup / document", color="#495567"];
+
+  // Optional persistence
+  deliver -> storage [label="upload/download", style="dotted", color="#AAAAAA"];
+
+  // Observability
+  webhook -> logs [style="dotted", color="#AAAAAA"];
+  queue -> logs [style="dotted", color="#AAAAAA"];
+  replicate -> logs [style="dotted", color="#AAAAAA"];
+  fal -> logs [style="dotted", color="#AAAAAA"];
+  deliver -> logs [style="dotted", color="#AAAAAA"];
+}
+
