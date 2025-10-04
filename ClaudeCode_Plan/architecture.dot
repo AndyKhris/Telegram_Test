@@ -1,0 +1,76 @@
+digraph TelegramBot {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=white, fontname="Arial"];
+    edge [fontname="Arial", fontsize=10];
+
+    // Styling
+    graph [fontname="Arial", fontsize=12, bgcolor=white, pad=0.5];
+
+    // Client
+    subgraph cluster_client {
+        label="Client";
+        style=rounded;
+        fillcolor="#E8F4F8";
+
+        telegram [label="Telegram Bot\n(/start • Generate • Edit)", fillcolor="#B3D9E6"];
+    }
+
+    // Mini Orchestrator
+    subgraph cluster_orchestrator {
+        label="Mini Orchestrator (FastAPI)";
+        style=rounded;
+        fillcolor="#FFF4E6";
+
+        webhook [label="Webhook & Command Router\n- Telegram Webhook\n- state: in-memory/Redis\nhelpers:\n• generate_with_flux_lora()\n• edit_with_nano_banana()", fillcolor="#FFE0B2", width=3.5];
+        error_handling [label="Error Handling & Resilience\n- Retry Logic (3x, exp backoff)\n- Timeout: 90s gen, 30s edit\n- User Notifications\n- Session TTL (1 hour)", fillcolor="#FFE0B2", width=3.5];
+        rate_limit [label="Rate Limiting\n- Per-User: 5 req/min\n- Global: 100 concurrent", fillcolor="#FFE0B2", width=3.5];
+    }
+
+    // Model Services
+    subgraph cluster_models {
+        label="Model Services";
+        style=rounded;
+        fillcolor="#E8F5E9";
+
+        replicate [label="Replicate\nFLUX-LoRA (Generate)", fillcolor="#C8E6C9"];
+        fal [label="fal.ai\nnano-banana (Edit)", fillcolor="#C8E6C9"];
+    }
+
+    // Future Extensions
+    subgraph cluster_extensions {
+        label="Extend later (optional)";
+        style="rounded,dashed";
+        fillcolor="#F3E5F5";
+
+        storage [label="Storage / CDN\n(S3 / Cloudinary)", fillcolor="#E1BEE7", style="rounded,filled,dashed"];
+        qa [label="QA & Scoring\n(ArcFace • Aesthetic • Safety)", fillcolor="#E1BEE7", style="rounded,filled,dashed"];
+        credits [label="Credits & Payments\n(Supabase • LSQ/Stripe)", fillcolor="#E1BEE7", style="rounded,filled,dashed"];
+        comfyui [label="ComfyUI Cloud\n(masked edits • DSLRizer • FLUX gen)", fillcolor="#E1BEE7", style="rounded,filled,dashed"];
+    }
+
+    // Main flow edges
+    telegram -> webhook [label="message / photo"];
+    webhook -> telegram [label="sendPhoto / status"];
+
+    webhook -> replicate [label="Generate:\ntext prompt", color="#4CAF50", penwidth=2];
+    replicate -> webhook [label="image URL", color="#4CAF50", penwidth=2];
+
+    webhook -> fal [label="Edit:\nimage URL + instruction", color="#2196F3", penwidth=2];
+    fal -> webhook [label="edited image URL", color="#2196F3", penwidth=2];
+
+    // Internal connections
+    webhook -> error_handling [style=invis];
+    error_handling -> rate_limit [style=invis];
+
+    // Future extension edges (dashed)
+    webhook -> storage [label="upload/download", style=dashed, color="#9C27B0"];
+    webhook -> qa [label="scores", style=dashed, color="#9C27B0"];
+    webhook -> credits [label="check/add credits", style=dashed, color="#9C27B0"];
+    webhook -> comfyui [label="masked edits / DSLR post", style=dashed, color="#9C27B0"];
+
+    // Invisible edges for layout
+    {rank=same; telegram}
+    {rank=same; webhook; error_handling; rate_limit}
+    {rank=same; replicate; fal}
+    {rank=same; storage; qa; credits; comfyui}
+}
