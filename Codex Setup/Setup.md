@@ -36,12 +36,19 @@ fi
 dot -V
 python - <<'PY'
 import importlib
-mods=[
-    "fastapi","uvicorn","httpx","telegram","replicate","fal",
-    "cachetools","redis","pydantic","tenacity","structlog"
-]
+
+# Always-check core deps
+mods=["fastapi","uvicorn","httpx","telegram","replicate",
+      "cachetools","redis","pydantic","tenacity","structlog"]
 for m in mods:
     importlib.import_module(m)
+
+# fal client import name varies by version: try "fal" then fallback to "fal_client"
+try:
+    importlib.import_module("fal")
+except ModuleNotFoundError:
+    importlib.import_module("fal_client")
+
 print("python deps ok")
 PY
 ```
@@ -49,4 +56,3 @@ PY
 Notes
 - Requires internet during setup for `apt-get`/`pip`.
 - Keep Container Caching On so Graphviz and `.venv` are reused.
-
