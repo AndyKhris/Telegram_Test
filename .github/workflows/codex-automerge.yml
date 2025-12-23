@@ -3,8 +3,6 @@ name: codex-automerge
 on:
   issue_comment:
     types: [created]
-  reaction:
-    types: [created]
 
 permissions:
   contents: write
@@ -18,17 +16,9 @@ concurrency:
 jobs:
   enable-automerge:
     if: >
-      (
-        github.event_name == 'issue_comment' &&
-        github.event.issue.pull_request != null &&
-        (github.event.comment.user.login == 'chatgpt-codex-connector' || github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
-      ) ||
-      (
-        github.event_name == 'reaction' &&
-        github.event.issue.pull_request != null &&
-        github.event.reaction.content == '+1' &&
-        (github.event.sender.login == 'chatgpt-codex-connector' || github.event.sender.login == 'chatgpt-codex-connector[bot]')
-      )
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      (github.event.comment.user.login == 'chatgpt-codex-connector' || github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge if Codex passed
@@ -75,56 +65,46 @@ jobs:
               return;
             }
 
-            let decision = null;
-            if (context.eventName === "reaction") {
-              decision = { enable: true, reason: "thumbs_up_reaction" };
-            } else {
-              const commentBody = context.payload.comment.body || "";
+            const commentBody = context.payload.comment.body || "";
 
-              function parseDecisionFromBlock(text) {
-                const lines = String(text)
-                  .replace(/\r\n/g, "\n")
-                  .split("\n")
-                  .map((l) => l.trim());
-                const idx = lines.findIndex((l) => l === "CODEX_AUTOMERGE_V1");
-                if (idx === -1) return null;
+            function parseDecisionFromBlock(text) {
+              const lines = String(text)
+                .replace(/\r\n/g, "\n")
+                .split("\n")
+                .map((l) => l.trim());
+              const idx = lines.findIndex((l) => l === "CODEX_AUTOMERGE_V1");
+              if (idx === -1) return null;
 
-                const parsed = {};
-                for (let i = idx + 1; i < Math.min(lines.length, idx + 12); i++) {
-                  const line = lines[i];
-                  if (!line) continue;
-                  const m = line.match(/^([A-Z0-9_]+):\s*(.*)$/);
-                  if (!m) continue;
-                  parsed[m[1]] = m[2];
-                }
-
-                const result = (parsed.RESULT || "").toUpperCase();
-                const automerge = (parsed.AUTOMERGE || "").toUpperCase();
-                const p0 = Number.parseInt(parsed.P0_COUNT, 10);
-                const p1 = Number.parseInt(parsed.P1_COUNT, 10);
-
-                if (
-                  result === "PASS" &&
-                  automerge === "ENABLE" &&
-                  p0 === 0 &&
-                  p1 === 0
-                ) {
-                  return { enable: true, reason: "codex_block" };
-                }
-                return { enable: false, reason: "codex_block_not_pass" };
+              const parsed = {};
+              for (let i = idx + 1; i < Math.min(lines.length, idx + 12); i++) {
+                const line = lines[i];
+                if (!line) continue;
+                const m = line.match(/^([A-Z0-9_]+):\s*(.*)$/);
+                if (!m) continue;
+                parsed[m[1]] = m[2];
               }
 
-              function parseDecisionFromPhrase(text) {
-                // Fail-safe: only enable on a known "clean" message.
-                const head = String(text).slice(0, 800);
-                const pass = /did(?:n\u2019t|n't| not) find any major issues/i.test(head);
-                if (pass) return { enable: true, reason: "pass_phrase" };
-                return { enable: false, reason: "no_pass_phrase" };
-              }
+              const result = (parsed.RESULT || "").toUpperCase();
+              const automerge = (parsed.AUTOMERGE || "").toUpperCase();
+              const p0 = Number.parseInt(parsed.P0_COUNT, 10);
+              const p1 = Number.parseInt(parsed.P1_COUNT, 10);
 
-              const fromBlock = parseDecisionFromBlock(commentBody);
-              decision = fromBlock ?? parseDecisionFromPhrase(commentBody);
+              if (result === "PASS" && automerge === "ENABLE" && p0 === 0 && p1 === 0) {
+                return { enable: true, reason: "codex_block" };
+              }
+              return { enable: false, reason: "codex_block_not_pass" };
             }
+
+            function parseDecisionFromPhrase(text) {
+              // Fail-safe: only enable on a known "clean" message.
+              const head = String(text).slice(0, 800);
+              const pass = /did(?:n\u2019t|n't| not) find any major issues/i.test(head);
+              if (pass) return { enable: true, reason: "pass_phrase" };
+              return { enable: false, reason: "no_pass_phrase" };
+            }
+
+            const fromBlock = parseDecisionFromBlock(commentBody);
+            const decision = fromBlock ?? parseDecisionFromPhrase(commentBody);
 
             if (!decision.enable) {
               core.info(`Skipping: decision=${decision.reason}`);
