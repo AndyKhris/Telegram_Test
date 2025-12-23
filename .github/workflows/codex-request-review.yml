@@ -1,0 +1,66 @@
+name: codex-request-review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, labeled]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: codex-request-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  request-codex-review:
+    if: >
+      github.event.pull_request.draft == false &&
+      contains(github.event.pull_request.labels.*.name, 'automerge') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'automerge')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment @codex review (once)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = context.payload.pull_request.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+
+            const alreadyRequested = comments.some((c) =>
+              (c.body || "").includes("@codex review")
+            );
+            if (alreadyRequested) {
+              core.info("Skipping: @codex review already requested.");
+              return;
+            }
+
+            const body = [
+              "@codex review",
+              "",
+              "Please follow `AGENTS.md` review guidelines.",
+              "",
+              "If you are able, include this block verbatim at the end of your response:",
+              "````",
+              "CODEX_AUTOMERGE_V1",
+              "RESULT: PASS|FAIL",
+              "P0_COUNT: <int>",
+              "P1_COUNT: <int>",
+              "AUTOMERGE: ENABLE|SKIP",
+              "````",
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body,
+            });

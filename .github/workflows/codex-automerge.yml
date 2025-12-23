@@ -1,0 +1,149 @@
+name: codex-automerge
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: codex-automerge-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  enable-automerge:
+    if: >
+      github.event.issue.pull_request != null &&
+      (github.event.comment.user.login == 'chatgpt-codex-connector' || github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge if Codex passed
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.payload.issue.number;
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: issueNumber,
+            });
+
+            const requiredLabel = "automerge";
+            const labels = (pr.labels || []).map((l) => l.name);
+            if (!labels.includes(requiredLabel)) {
+              core.info(`Skipping: PR missing label '${requiredLabel}'.`);
+              return;
+            }
+
+            if (pr.draft) {
+              core.info("Skipping: PR is draft.");
+              return;
+            }
+
+            // Safety gate: only enable auto-merge on PRs you author (update as needed).
+            const allowedAuthors = ["AndyKhris"];
+            const prAuthor = pr.user?.login;
+            if (!allowedAuthors.includes(prAuthor)) {
+              core.info(`Skipping: PR author '${prAuthor}' not in allowlist.`);
+              return;
+            }
+
+            // Safety gate: do not auto-merge PRs from forks.
+            const headFullName = pr.head?.repo?.full_name;
+            if (headFullName !== `${owner}/${repo}`) {
+              core.info(
+                `Skipping: PR head repo '${headFullName}' is not '${owner}/${repo}'.`
+              );
+              return;
+            }
+
+            const commentBody = context.payload.comment.body || "";
+
+            function parseDecisionFromBlock(text) {
+              const lines = String(text)
+                .replace(/\r\n/g, "\n")
+                .split("\n")
+                .map((l) => l.trim());
+              const idx = lines.findIndex((l) => l === "CODEX_AUTOMERGE_V1");
+              if (idx === -1) return null;
+
+              const parsed = {};
+              for (let i = idx + 1; i < Math.min(lines.length, idx + 12); i++) {
+                const line = lines[i];
+                if (!line) continue;
+                const m = line.match(/^([A-Z0-9_]+):\s*(.*)$/);
+                if (!m) continue;
+                parsed[m[1]] = m[2];
+              }
+
+              const result = (parsed.RESULT || "").toUpperCase();
+              const automerge = (parsed.AUTOMERGE || "").toUpperCase();
+              const p0 = Number.parseInt(parsed.P0_COUNT, 10);
+              const p1 = Number.parseInt(parsed.P1_COUNT, 10);
+
+              if (result === "PASS" && automerge === "ENABLE" && p0 === 0 && p1 === 0) {
+                return { enable: true, reason: "codex_block" };
+              }
+              return { enable: false, reason: "codex_block_not_pass" };
+            }
+
+            function parseDecisionFromPhrase(text) {
+              // Fail-safe: only enable on a known "clean" message.
+              const head = String(text).slice(0, 800);
+              const pass = /did(?:n\u2019t|n't| not) find any major issues/i.test(head);
+              if (pass) return { enable: true, reason: "pass_phrase" };
+              return { enable: false, reason: "no_pass_phrase" };
+            }
+
+            const fromBlock = parseDecisionFromBlock(commentBody);
+            const decision = fromBlock ?? parseDecisionFromPhrase(commentBody);
+
+            if (!decision.enable) {
+              core.info(`Skipping: decision=${decision.reason}`);
+              return;
+            }
+
+            const prId = pr.node_id;
+            const mergeMethod = "SQUASH";
+
+            const mutation = `
+              mutation EnableAutoMerge($prId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: $mergeMethod }) {
+                  pullRequest {
+                    number
+                    autoMergeRequest { enabledAt }
+                  }
+                }
+              }
+            `;
+
+            try {
+              const result = await github.graphql(mutation, { prId, mergeMethod });
+              core.info(
+                `Enabled auto-merge for PR #${result.enablePullRequestAutoMerge.pullRequest.number}.`
+              );
+            } catch (error) {
+              const message = String(error?.message || error);
+              if (
+                message.toLowerCase().includes("auto-merge") &&
+                message.toLowerCase().includes("already")
+              ) {
+                core.info(`Auto-merge already enabled: ${message}`);
+              } else {
+                throw error;
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: `Auto-merge enabled (via ${decision.reason}).`,
+            });
