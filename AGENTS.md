@@ -35,6 +35,14 @@
 - Use concise, action‑oriented commits (e.g., `feat: add fal edit adapter`).
 - PRs must include: purpose, summary of changes, how to test, and updated docs/diagrams when architecture changes.
 - Link issues and add screenshots or sample commands when relevant.
+- Always include the following fixed block in agent responses (final output):
+  ```
+  CODEX_AUTOMERGE_V1
+  RESULT: PASS|FAIL
+  P0_COUNT: <int>
+  P1_COUNT: <int>
+  AUTOMERGE: ENABLE|SKIP
+  ```
 
 ## Security & Configuration Tips
 - Required env vars (when code exists): `TELEGRAM_BOT_TOKEN`, `REPLICATE_API_TOKEN`, `FAL_API_KEY`.
@@ -44,3 +52,5 @@
 - Non‑blocking webhook acks quickly; work runs in background jobs.
 - Provider adapters normalize calls to Replicate (generate) and fal (edit).
 - Idempotency (dedupe on `update_id`), rate limits, and structured logs are mandatory in `src/`.
+
+This project belongs to AndyKhris.
