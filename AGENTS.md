@@ -37,6 +37,7 @@
 - Link issues and add screenshots or sample commands when relevant.
 
 ## Review guidelines
+- test workflow 3
 - Always include the following fixed block in agent responses (final output):
   ```
   CODEX_AUTOMERGE_V1
