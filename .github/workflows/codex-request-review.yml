@@ -18,6 +18,8 @@ jobs:
     if: >
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      CODEX_REVIEW_TOKEN: ${{ secrets.CODEX_REVIEW_TOKEN }}
     runs-on: ubuntu-latest
     steps:
       - name: Debug status (PR 11 only)
@@ -41,7 +43,7 @@ jobs:
 
       - name: Comment @codex review (once)
         id: token_comment
-        if: ${{ secrets.CODEX_REVIEW_TOKEN != '' }}
+        if: ${{ env.CODEX_REVIEW_TOKEN != '' }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -131,13 +133,13 @@ jobs:
             }
 
       - name: Skip (missing CODEX_REVIEW_TOKEN)
-        if: ${{ secrets.CODEX_REVIEW_TOKEN == '' }}
+        if: ${{ env.CODEX_REVIEW_TOKEN == '' }}
         run: |
           echo "CODEX_REVIEW_TOKEN is not set; skipping automatic @codex review comment (connector usually ignores github-actions[bot])."
 
       - name: Diagnostic (CODEX_REVIEW_TOKEN failed)
         if: >
-          secrets.CODEX_REVIEW_TOKEN != '' &&
+          env.CODEX_REVIEW_TOKEN != '' &&
           steps.token_comment.outputs.commented != 'true' &&
           steps.token_comment.outputs.skipped != 'true' &&
           steps.token_comment.outputs.error != ''
