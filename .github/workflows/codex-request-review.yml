@@ -2,7 +2,7 @@ name: codex-request-review
 
 on:
   pull_request_target:
-    types: [opened, reopened, ready_for_review, labeled]
+    types: [opened, reopened, ready_for_review, labeled, synchronize]
 
 permissions:
   issues: write
@@ -101,13 +101,13 @@ jobs:
                 "Please follow `AGENTS.md` review guidelines.",
                 "",
                 "If you are able, include this block verbatim at the end of your response:",
-                "```",
+                "````",
                 "CODEX_AUTOMERGE_V1",
                 "RESULT: PASS|FAIL",
                 "P0_COUNT: <int>",
                 "P1_COUNT: <int>",
                 "AUTOMERGE: ENABLE|SKIP",
-                "```",
+                "````",
               ].join("\n");
 
               await github.rest.issues.createComment({
