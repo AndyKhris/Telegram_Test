@@ -54,3 +54,4 @@
 - Idempotency (dedupe on `update_id`), rate limits, and structured logs are mandatory in `src/`.
 
 This project belongs to AndyKhris.
+Created in 2025.
