@@ -7,3 +7,4 @@ This folder contains notes about repo workflows.
 - `codex-automerge`: merges PRs after Codex connector responds "Didn't find any major issues" (or 👍).
 
 Test marker: token-review
+Sync marker: trigger-synchronize
