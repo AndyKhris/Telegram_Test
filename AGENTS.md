@@ -35,6 +35,8 @@
 - Use concise, action‑oriented commits (e.g., `feat: add fal edit adapter`).
 - PRs must include: purpose, summary of changes, how to test, and updated docs/diagrams when architecture changes.
 - Link issues and add screenshots or sample commands when relevant.
+
+## Review guidelines
 - Always include the following fixed block in agent responses (final output):
   ```
   CODEX_AUTOMERGE_V1
