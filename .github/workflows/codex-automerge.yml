@@ -111,7 +111,9 @@ jobs:
             }
 
             const prId = pr.node_id;
-            const mergeMethod = "SQUASH";
+
+            const mergeMethodGraphql = "SQUASH";
+            const mergeMethodRest = "squash";
 
             const mutation = `
               mutation EnableAutoMerge($prId: ID!, $mergeMethod: PullRequestMergeMethod!) {
@@ -124,26 +126,107 @@ jobs:
               }
             `;
 
-            try {
-              const result = await github.graphql(mutation, { prId, mergeMethod });
-              core.info(
-                `Enabled auto-merge for PR #${result.enablePullRequestAutoMerge.pullRequest.number}.`
-              );
-            } catch (error) {
-              const message = String(error?.message || error);
-              if (
-                message.toLowerCase().includes("auto-merge") &&
-                message.toLowerCase().includes("already")
-              ) {
-                core.info(`Auto-merge already enabled: ${message}`);
-              } else {
-                throw error;
+            async function tryEnableAutoMerge() {
+              try {
+                const result = await github.graphql(mutation, {
+                  prId,
+                  mergeMethod: mergeMethodGraphql,
+                });
+                core.info(
+                  `Enabled auto-merge for PR #${result.enablePullRequestAutoMerge.pullRequest.number}.`
+                );
+                return { ok: true, already: false };
+              } catch (error) {
+                const message = String(error?.message || error);
+                if (
+                  message.toLowerCase().includes("auto-merge") &&
+                  message.toLowerCase().includes("already")
+                ) {
+                  core.info(`Auto-merge already enabled: ${message}`);
+                  return { ok: true, already: true };
+                }
+                return { ok: false, error };
               }
             }
+
+            async function tryMergeNow(merge_method) {
+              const { data } = await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: issueNumber,
+                merge_method,
+              });
+              core.info(`Merged PR #${issueNumber} via '${merge_method}'.`);
+              return data;
+            }
+
+            let actionTaken = null;
+            let lastError = null;
+
+            const enableResult = await tryEnableAutoMerge();
+            if (enableResult.ok) {
+              actionTaken = {
+                kind: "auto_merge_enabled",
+                reason: decision.reason,
+                already: enableResult.already,
+              };
+            } else {
+              lastError = enableResult.error;
+              core.warning(
+                `enablePullRequestAutoMerge failed: ${String(lastError?.message || lastError)}`
+              );
+
+              for (const method of [mergeMethodRest, "merge"]) {
+                try {
+                  await tryMergeNow(method);
+                  actionTaken = { kind: "merged", method };
+                  break;
+                } catch (mergeError) {
+                  lastError = mergeError;
+                  core.warning(
+                    `pulls.merge failed (${method}): ${String(
+                      mergeError?.message || mergeError
+                    )}`
+                  );
+                }
+              }
+            }
+
+            if (!actionTaken) {
+              const message = String(lastError?.message || lastError || "unknown error");
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: [
+                  "CODEX_AUTOMERGE_V1",
+                  "RESULT: FAIL",
+                  "P0_COUNT: 0",
+                  "P1_COUNT: 0",
+                  "AUTOMERGE: SKIP",
+                  "",
+                  `Failed to enable auto-merge or merge: ${message}`,
+                ].join("\n"),
+              });
+              throw lastError;
+            }
+
+            const summary =
+              actionTaken.kind === "merged"
+                ? `Merged via GitHub Actions (${actionTaken.method}).`
+                : `Auto-merge enabled (via ${actionTaken.reason}).`;
 
             await github.rest.issues.createComment({
               owner,
               repo,
               issue_number: issueNumber,
-              body: `Auto-merge enabled (via ${decision.reason}).`,
+              body: [
+                "CODEX_AUTOMERGE_V1",
+                "RESULT: PASS",
+                "P0_COUNT: 0",
+                "P1_COUNT: 0",
+                "AUTOMERGE: ENABLE",
+                "",
+                summary,
+              ].join("\n"),
             });

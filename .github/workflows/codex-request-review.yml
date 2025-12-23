@@ -22,8 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Comment @codex review (once)
+        if: ${{ secrets.CODEX_REVIEW_TOKEN != '' }}
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.CODEX_REVIEW_TOKEN }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
@@ -50,13 +52,13 @@ jobs:
               "Please follow `AGENTS.md` review guidelines.",
               "",
               "If you are able, include this block verbatim at the end of your response:",
-              "````",
+              "```",
               "CODEX_AUTOMERGE_V1",
               "RESULT: PASS|FAIL",
               "P0_COUNT: <int>",
               "P1_COUNT: <int>",
               "AUTOMERGE: ENABLE|SKIP",
-              "````",
+              "```",
             ].join("\n");
 
             await github.rest.issues.createComment({
@@ -65,3 +67,8 @@ jobs:
               issue_number: prNumber,
               body,
             });
+
+      - name: Skip (missing CODEX_REVIEW_TOKEN)
+        if: ${{ secrets.CODEX_REVIEW_TOKEN == '' }}
+        run: |
+          echo "CODEX_REVIEW_TOKEN is not set; skipping automatic @codex review comment (connector usually ignores github-actions[bot])."
