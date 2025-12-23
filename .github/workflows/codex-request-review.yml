@@ -1,7 +1,7 @@
 name: codex-request-review
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, reopened, ready_for_review, labeled]
 
 permissions:
@@ -16,6 +16,7 @@ jobs:
   request-codex-review:
     if: >
       github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'automerge') &&
       (github.event.action != 'labeled' || github.event.label.name == 'automerge')
     runs-on: ubuntu-latest
