@@ -16,9 +16,7 @@ jobs:
   request-codex-review:
     if: >
       github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.labels.*.name, 'automerge') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'automerge')
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Comment @codex review (once)
@@ -32,8 +30,35 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const prNumber = context.payload.pull_request.number;
+            const requiredLabel = "automerge";
 
             try {
+              const { data: pr } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: prNumber,
+              });
+
+              const labels = (pr.labels || []).map((l) => l.name);
+              if (!labels.includes(requiredLabel)) {
+                core.info(`Skipping: PR missing label '${requiredLabel}'.`);
+                core.setOutput("commented", "false");
+                core.setOutput("skipped", "true");
+                return;
+              }
+
+              if (
+                context.payload.action === "labeled" &&
+                context.payload.label?.name !== requiredLabel
+              ) {
+                core.info(
+                  `Skipping: labeled '${context.payload.label?.name}', waiting for '${requiredLabel}'.`
+                );
+                core.setOutput("commented", "false");
+                core.setOutput("skipped", "true");
+                return;
+              }
+
               const { data: comments } = await github.rest.issues.listComments({
                 owner,
                 repo,
@@ -57,13 +82,13 @@ jobs:
                 "Please follow `AGENTS.md` review guidelines.",
                 "",
                 "If you are able, include this block verbatim at the end of your response:",
-                "````",
+                "```",
                 "CODEX_AUTOMERGE_V1",
                 "RESULT: PASS|FAIL",
                 "P0_COUNT: <int>",
                 "P1_COUNT: <int>",
                 "AUTOMERGE: ENABLE|SKIP",
-                "````",
+                "```",
               ].join("\n");
 
               await github.rest.issues.createComment({
