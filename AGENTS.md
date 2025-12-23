@@ -38,6 +38,7 @@
 
 ## Review guidelines
 - test workflow 3
+- test workflow token 4
 - Always include the following fixed block in agent responses (final output):
   ```
   CODEX_AUTOMERGE_V1
