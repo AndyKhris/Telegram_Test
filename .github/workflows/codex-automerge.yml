@@ -108,10 +108,83 @@ jobs:
 
             if (!decision.enable) {
               core.info(`Skipping: decision=${decision.reason}`);
+
+              const autofixLabel = "autofix-needed";
+
+              async function ensureRepoLabelExists(name) {
+                try {
+                  await github.rest.issues.getLabel({ owner, repo, name });
+                } catch (error) {
+                  if (error?.status !== 404) throw error;
+                  try {
+                    await github.rest.issues.createLabel({
+                      owner,
+                      repo,
+                      name,
+                      color: "FBCA04",
+                      description: "Codex found issues; needs local fixes before automerge.",
+                    });
+                    core.info(`Created label '${name}'.`);
+                  } catch (createError) {
+                    const message = String(createError?.message || createError);
+                    if (
+                      createError?.status === 422 ||
+                      message.toLowerCase().includes("already exists")
+                    ) {
+                      core.info(`Label '${name}' already exists.`);
+                      return;
+                    }
+                    throw createError;
+                  }
+                }
+              }
+
+              async function addIssueLabelIfMissing(name) {
+                if (labels.includes(name)) {
+                  core.info(`Label '${name}' already present.`);
+                  return;
+                }
+
+                await ensureRepoLabelExists(name);
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  labels: [name],
+                });
+                core.info(`Added label '${name}'.`);
+              }
+
+              try {
+                await addIssueLabelIfMissing(autofixLabel);
+              } catch (error) {
+                core.warning(
+                  `Failed to add '${autofixLabel}' label: ${String(error?.message || error)}`
+                );
+              }
               return;
             }
 
             const prId = pr.node_id;
+
+            const autofixLabel = "autofix-needed";
+            if (labels.includes(autofixLabel)) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  name: autofixLabel,
+                });
+                core.info(`Removed label '${autofixLabel}'.`);
+              } catch (error) {
+                core.warning(
+                  `Failed to remove '${autofixLabel}' label: ${String(
+                    error?.message || error
+                  )}`
+                );
+              }
+            }
 
             const mergeMethodGraphql = "SQUASH";
             const mergeMethodRest = "squash";
