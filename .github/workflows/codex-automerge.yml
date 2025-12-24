@@ -3,6 +3,10 @@ name: codex-automerge
 on:
   issue_comment:
     types: [created]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -10,15 +14,19 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: codex-automerge-${{ github.event.issue.number }}
+  group: codex-automerge-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
   enable-automerge:
     if: >
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request != null &&
-      (github.event.comment.user.login == 'chatgpt-codex-connector' || github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        (github.event.comment.user.login == 'chatgpt-codex-connector' || github.event.comment.user.login == 'chatgpt-codex-connector[bot]')) ||
+      (github.event_name == 'pull_request_review' &&
+        (github.event.review.user.login == 'chatgpt-codex-connector' || github.event.review.user.login == 'chatgpt-codex-connector[bot]')) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        (github.event.comment.user.login == 'chatgpt-codex-connector' || github.event.comment.user.login == 'chatgpt-codex-connector[bot]'))
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge if Codex passed
@@ -28,12 +36,40 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const issueNumber = context.payload.issue.number;
+            const eventName = context.eventName;
+
+            let prNumber = null;
+            let triggerLogin = null;
+            let triggerBody = "";
+
+            if (eventName === "issue_comment") {
+              prNumber = context.payload.issue.number;
+              triggerLogin = context.payload.comment?.user?.login ?? null;
+              triggerBody = context.payload.comment?.body ?? "";
+            } else if (eventName === "pull_request_review") {
+              prNumber = context.payload.pull_request.number;
+              triggerLogin = context.payload.review?.user?.login ?? null;
+              triggerBody = context.payload.review?.body ?? "";
+            } else if (eventName === "pull_request_review_comment") {
+              prNumber = context.payload.pull_request.number;
+              triggerLogin = context.payload.comment?.user?.login ?? null;
+              triggerBody = context.payload.comment?.body ?? "";
+            } else {
+              core.info(`Skipping: unsupported event '${eventName}'.`);
+              return;
+            }
+
+            if (!prNumber) {
+              core.info("Skipping: could not determine PR number.");
+              return;
+            }
+
+            core.info(`Triggered by ${eventName} from '${triggerLogin ?? "unknown"}'.`);
 
             const { data: pr } = await github.rest.pulls.get({
               owner,
               repo,
-              pull_number: issueNumber,
+              pull_number: prNumber,
             });
 
             const requiredLabel = "automerge";
@@ -65,7 +101,7 @@ jobs:
               return;
             }
 
-            const commentBody = context.payload.comment.body || "";
+            const commentBody = triggerBody;
 
             function parseDecisionFromBlock(text) {
               const lines = String(text)
@@ -149,7 +185,7 @@ jobs:
                 await github.rest.issues.addLabels({
                   owner,
                   repo,
-                  issue_number: issueNumber,
+                  issue_number: prNumber,
                   labels: [name],
                 });
                 core.info(`Added label '${name}'.`);
@@ -173,7 +209,7 @@ jobs:
                 await github.rest.issues.removeLabel({
                   owner,
                   repo,
-                  issue_number: issueNumber,
+                  issue_number: prNumber,
                   name: autofixLabel,
                 });
                 core.info(`Removed label '${autofixLabel}'.`);
@@ -227,10 +263,10 @@ jobs:
               const { data } = await github.rest.pulls.merge({
                 owner,
                 repo,
-                pull_number: issueNumber,
+                pull_number: prNumber,
                 merge_method,
               });
-              core.info(`Merged PR #${issueNumber} via '${merge_method}'.`);
+              core.info(`Merged PR #${prNumber} via '${merge_method}'.`);
               return data;
             }
 
@@ -271,7 +307,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner,
                 repo,
-                issue_number: issueNumber,
+                issue_number: prNumber,
                 body: [
                   "CODEX_AUTOMERGE_V1",
                   "RESULT: FAIL",
@@ -293,7 +329,7 @@ jobs:
             await github.rest.issues.createComment({
               owner,
               repo,
-              issue_number: issueNumber,
+              issue_number: prNumber,
               body: [
                 "CODEX_AUTOMERGE_V1",
                 "RESULT: PASS",
