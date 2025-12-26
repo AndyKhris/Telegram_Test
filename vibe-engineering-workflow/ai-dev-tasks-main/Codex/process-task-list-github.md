@@ -1,4 +1,4 @@
-﻿---
+---
 description: Work through a task list one sub-task at a time, then open a PR and iterate until GitHub auto-merges
 argument-hint: TASKS=<path> [BASE=main]
 ---
@@ -55,18 +55,18 @@ After the PR exists, repeat the following loop until the PR is merged (or you st
 2. If the PR has label `autofix-needed` **OR** `ci-failed` (even if `autofix-needed` is not present):
    - Fetch CI/check status first (always):
      - `mcp__github__pull_request_read(method=get_status)`
-   - If label `ci-failed` is present **or** `CI Tests / ci-tests` is failing, prioritize fixing CI:
+   - If `CI Tests / ci-tests` (or other required checks) is failing, prioritize fixing CI:
      - Reproduce locally by running the same commands as CI (typically `ruff check ...` and `pytest -q`).
      - Fix the failing tests/lint, then re-run locally until green.
      - Commit and push to the **same PR branch**.
      - If your branch ruleset dismisses approvals on push, re-request review by posting `@codex review` again via `mcp__github__add_issue_comment`.
      - Return to polling.
+   - If `ci-failed` is present but checks are green, remove/ignore the stale label (GitHub MCP: `mcp__github__issue_write` to drop `ci-failed`) and continue with Codex feedback.
    - Otherwise, treat it as a Codex feedback failure (`autofix-needed` without CI failure):
      - Fetch the latest Codex connector feedback:
        - `mcp__github__pull_request_read(method=get_review_comments)` (line-level discussions)
        - and/or `mcp__github__pull_request_read(method=get_comments)` / `method=get_reviews` (summary feedback)
-     - Fix the issue(s) locally.
-     - Run relevant tests locally.
+     - Fix the issue(s) locally and run relevant tests until green.
      - Commit and push to the **same PR branch**.
      - Re-request review by posting `@codex review` again via `mcp__github__add_issue_comment`.
        - Important: `codex-request-review` only posts `@codex review` once per PR, so the agent must re-request it after updates.
