@@ -133,7 +133,7 @@ Create a fine-grained PAT:
 2. Repository access: select `AndyKhris/Telegram_Test`
 3. Permissions (minimum required):
    - **Issues: Read and write** (PR comments are issue comments)
-   - (Optional but safe) Pull requests: Read
+   - **Pull requests: Read** (workflow reads PR metadata before deciding to comment)
 4. Save token value
 
 ### Step 3 - Add `CODEX_REVIEW_TOKEN` as a repo secret
@@ -149,14 +149,21 @@ Repo -> Settings -> Actions -> General -> Workflow permissions:
 Why:
 - `codex-automerge` merges PRs and comments using `GITHUB_TOKEN`, which needs write permissions.
 
-### Step 5 - Enable auto-merge (optional)
+### Step 5 - Ensure required labels exist
+Repo -> Issues -> Labels:
+- Ensure label `automerge` exists (create it if missing).
+
+Note:
+- Labels `autofix-needed` and `ci-failed` are created automatically by workflows when needed.
+
+### Step 6 - Enable auto-merge (optional)
 Repo -> Settings -> General -> Pull Requests:
 - Enable "Allow auto-merge"
 
 Note:
 - Our workflow tries to enable auto-merge first, but it can still merge directly via REST if auto-merge isn't enabled.
 
-### Step 6 - Require CI on `main` (recommended)
+### Step 7 - Require CI on `main` (recommended)
 Configure branch protection so CI is a hard merge gate:
 
 1. Repo -> Settings -> Branches -> Branch protection rules
@@ -167,6 +174,10 @@ Configure branch protection so CI is a hard merge gate:
 
 Why:
 - With required checks enabled, `codex-automerge` can enable auto-merge after a clean Codex review, and GitHub will merge only after CI is green.
+
+Important:
+- `ci-tests.yml` currently installs dependencies from a repo-root `requirements.txt` via `pip install -r requirements.txt`.
+  - If your repo uses Poetry/`pyproject.toml`, update the workflow install step accordingly.
 
 ---
 
