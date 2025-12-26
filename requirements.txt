@@ -1,0 +1,22 @@
+# Telegram Image Orchestrator Bot - Dependencies
+# Python 3.11+
+
+# Web framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# Data validation & settings
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# HTTP client (async)
+httpx>=0.25.0
+
+# Job queue & state store
+redis>=5.0.0
+
+# AI providers
+replicate>=0.22.0
+
+# Environment variables
+python-dotenv>=1.0.0

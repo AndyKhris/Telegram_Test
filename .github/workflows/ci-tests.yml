@@ -1,0 +1,46 @@
+name: CI Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  ci-tests:
+    # Do not run on forks (avoids secrets/perms issues and keeps scope to same-repo branches).
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest ruff
+
+      - name: Lint (ruff)
+        run: |
+          python -m ruff check src tests
+
+      - name: Tests (pytest)
+        env:
+          # Dummy values so code paths that read env don't fail on missing tokens.
+          TELEGRAM_BOT_TOKEN: "test-token"
+          REPLICATE_API_TOKEN: "test-token"
+          FAL_KEY: "test-token"
+        run: |
+          python -m pytest -q
+
