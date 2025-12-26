@@ -50,20 +50,23 @@ To guide an AI assistant in creating a detailed, step-by-step task list in Markd
    - Add **"generate integration tests"** as the final sub-task for this parent task.
    - Place this parent task **last** in the task list.
 
-9. **Release Smoke/E2E Suite (Ops slice PRD only):**  
+9. **Code Style (format + lint) parent task:**  
+   Add a dedicated parent task near the end of the task list (after implementation tasks and **before any final test/ops parent tasks** like **Integration Tests** or **Release Smoke/E2E Suite**) to run the repo’s formatter(s)/linter(s) and fix any issues (e.g., `python -m black .` and `python -m ruff check src tests`).
+
+10. **Release Smoke/E2E Suite (Ops slice PRD only):**  
    - If the PRD is specifically for the Ops feature "Release Smoke/E2E Suite" (post-deploy verification), ensure the task list includes a dedicated parent task (placed last) per the "Release Smoke/E2E Suite guidelines" below.
    - Create/update a runnable smoke/E2E entrypoint (e.g., `scripts/smoke.*`) that returns a non-zero exit code on failure.
    - Create/update `tests/smoke/` and/or `tests/e2e/` and add coverage for the PRD's critical end-to-end flows.
    - Document how to run locally and against staging (required env vars, safety notes, timeouts).
    - Ensure the suite is safe-by-default (no spamming public chats, no destructive actions) and does not log secrets.
 
-10. **Identify Relevant Files:**  
+11. **Identify Relevant Files:**  
    Based on the tasks and PRD, identify potential files that will need to be created or modified. List these under the `Relevant Files` section, including corresponding test files if applicable.
 
-11. **Generate Final Output:**  
+12. **Generate Final Output:**  
    Combine the parent tasks, sub-tasks (including generate tests), relevant files, and notes into the final Markdown structure.
 
-12. **Save Task List:**  
+13. **Save Task List:**  
     Save the generated document in the `/tasks/` directory with the filename `tasks-[prd-file-name].md`, where `[prd-file-name]` matches the base name of the input PRD file (e.g., if the input was `0001-prd-user-profile-editing.md`, the output is `tasks-0001-prd-user-profile-editing.md`).
 
 ## Output Format
@@ -88,6 +91,7 @@ The generated task list _must_ follow this structure:
 
 - Unit tests should typically be placed alongside the code files they are testing (e.g., `MyComponent.tsx` and `MyComponent.test.tsx` in the same directory).
 - Use `npx jest [optional/path/to/test/file]` to run tests. Running without a path executes all tests found by the Jest configuration.
+- Run code formatters/linters before finalizing changes (e.g., `python -m black .` and `python -m ruff check src tests`) and fix any issues.
 - For **vertical features**, include a final **Integration Tests** parent task (placed last).
 - For the Ops PRD **Release Smoke/E2E Suite**, include a final **Release Smoke/E2E Suite** parent task (placed last).
 
@@ -114,14 +118,16 @@ Update the file after completing each sub-task, not just after completing an ent
 - [ ] 2.0 Parent Task Title
   - [ ] 2.1 [Sub-task description 2.1]
 - [ ] 3.0 Parent Task Title (may not require sub-tasks if purely structural or configuration)
-- [ ] N.0 Integration Tests (vertical feature only; last parent task)
-  - [ ] N.1 [Integration test setup/execution]
-  - [ ] N.2 generate integration tests
-- [ ] N+1.0 Release Smoke/E2E Suite (Ops slice PRD only; last parent task)
-  - [ ] N+1.1 Add runnable smoke entrypoint (e.g., `scripts/smoke.*`) with non-zero exit code on failure
-  - [ ] N+1.2 Add/update smoke/E2E tests under `tests/smoke/` and/or `tests/e2e/`
-  - [ ] N+1.3 Document local and staging run commands + safety notes
-  - [ ] N+1.4 generate smoke/e2e tests
+- [ ] N.0 Code style checks (format + lint)
+  - [ ] N.1 Run code formatters/linters (e.g., `python -m black .` and `python -m ruff check src tests`) and fix any issues
+- [ ] N+1.0 Integration Tests (vertical feature only; last parent task)
+  - [ ] N+1.1 [Integration test setup/execution]
+  - [ ] N+1.2 generate integration tests
+- [ ] N+2.0 Release Smoke/E2E Suite (Ops slice PRD only; last parent task)
+  - [ ] N+2.1 Add runnable smoke entrypoint (e.g., `scripts/smoke.*`) with non-zero exit code on failure
+  - [ ] N+2.2 Add/update smoke/E2E tests under `tests/smoke/` and/or `tests/e2e/`
+  - [ ] N+2.3 Document local and staging run commands + safety notes
+  - [ ] N+2.4 generate smoke/e2e tests
 
 ## Interaction Model
 

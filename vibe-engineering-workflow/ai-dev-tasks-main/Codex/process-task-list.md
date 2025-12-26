@@ -15,9 +15,10 @@ When invoked as a slash command, treat `$TASKS` (if provided) as the path to the
 - **Completion protocol:**  
   1. When you finish a **sub-task**, immediately mark it as completed by changing `[ ]` to `[x]`.
   2. If **all** subtasks underneath a parent task are now `[x]`, follow this sequence:
-    - **First**: Run the relevant **unit tests** for that parent task (or the full unit suite if unsure).
+    - **First**: Run the repo’s formatters/linters (stack-appropriate; e.g., `python -m black .` and `python -m ruff check src tests`) and fix any issues.
+    - **Then**: Run the relevant **unit tests** for that parent task (or the full unit suite if unsure).
     - If this parent task is **Integration Tests** (final parent for a vertical feature), run the **integration tests** after unit tests.
-    - **Only if tests pass**: Stage changes (`git add .`).
+    - **Only if style checks + tests pass**: Stage changes (`git add .`).
     - **Clean up**: Remove any temporary files and temporary code before committing.
     - **Commit**: Use a descriptive commit message that:
       - Uses conventional commit format (`feat:`, `fix:`, `refactor:`, etc.).
