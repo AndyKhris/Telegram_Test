@@ -110,6 +110,55 @@ Purpose:
   - If CI failed: add labels `autofix-needed` and `ci-failed`
   - If CI passed: remove label `ci-failed` (leave `autofix-needed` unchanged because it may be used by Codex review)
 
+### PR flow scenarios (what happens when you push a PR)
+
+Assumptions used below:
+- PR is **same-repo** (not a fork).
+- You apply label `automerge` (otherwise Codex review/auto-merge steps are skipped).
+- Branch protection requires `CI Tests / ci-tests` (recommended).
+
+Baseline (regardless of `automerge`):
+1. **`ci-tests`** runs on every PR update (opened/synchronize/reopened/ready_for_review) and reports `CI Tests / ci-tests`.
+
+Scenario 1) PR has no issues (CI passes + Codex review passes)
+1. You open/update a PR.
+2. `ci-tests` runs and passes.
+3. You (or the agent) adds label `automerge`.
+4. **`codex-request-review`** posts `@codex review` once (as your user, via `CODEX_REVIEW_TOKEN`).
+5. The **Codex connector** (`chatgpt-codex-connector[bot]`) replies (comment/review).
+6. **`codex-automerge`** sees the connector reply and:
+   - enables GitHub auto-merge (preferred), or merges immediately if auto-merge is disabled and GitHub allows it.
+7. GitHub merges the PR once all required checks are green.
+
+Scenario 2) PR fails `ci-tests` but Codex review passes
+1. `ci-tests` runs and fails.
+2. If the PR has label `automerge`, **`ci-tests-autofix-needed`** adds:
+   - `ci-failed`
+   - `autofix-needed`
+3. Codex connector replies “pass” → **`codex-automerge`** enables auto-merge (or attempts merge).
+4. Branch protection blocks the merge until `CI Tests / ci-tests` passes.
+5. You fix the CI failure and push to the **same PR branch**.
+6. `ci-tests` reruns and passes:
+   - `ci-tests-autofix-needed` removes `ci-failed` (it intentionally leaves `autofix-needed` unchanged).
+7. If auto-merge was enabled earlier, GitHub merges automatically once checks are green.
+
+Scenario 3) PR has issues in both `ci-tests` and Codex review
+1. `ci-tests` fails → if `automerge` is present, `ci-tests-autofix-needed` adds `ci-failed` + `autofix-needed`.
+2. Codex connector replies with feedback (non-pass) → **`codex-automerge`** adds/keeps `autofix-needed` and does not merge.
+3. You fix CI + the review issues, push to the same PR branch, and rerun local tests.
+4. Re-request Codex review by commenting `@codex review` again (the request workflow is intentionally “once per PR”).
+5. When Codex later replies “pass” and CI is green, auto-merge completes.
+
+### Edge cases / failure modes (and mitigations)
+
+- **Codex connector reacts with a 👍 but does not comment/review**: GitHub Actions cannot trigger on reactions, so `codex-automerge` never runs. Mitigation: ensure the connector is configured to post a comment/review response.
+- **CI failed before you added `automerge`**: `ci-tests-autofix-needed` only labels on `CI Tests` completion *and* only if `automerge` is present at that time. Mitigation: after adding `automerge`, push a new commit (or re-run CI) so the labeling workflow runs again.
+- **`codex-request-review` only comments once per PR**: after pushing fixes you must re-comment `@codex review` manually (or via MCP) to get fresh feedback.
+- **Repo auto-merge disabled**: `codex-automerge` falls back to immediate merge attempts; with required checks this can fail noisily. Mitigation: enable “Allow auto-merge” in repo settings (recommended).
+- **Pass detection is conservative**: if the connector’s “looks good” phrasing changes and doesn’t match the supported patterns, `codex-automerge` will fail closed and add `autofix-needed`. Mitigation: update the regex in `.github/workflows/codex-automerge.yml`.
+- **PR author not allowlisted**: `codex-automerge` currently only auto-merges PRs authored by the configured allowlist. Mitigation: update `allowedAuthors` in `.github/workflows/codex-automerge.yml`.
+- **Required approvals + “dismiss stale approvals”**: if you require approvals and your settings dismiss them on new commits, auto-merge may wait for a new Codex review after you push fixes. Mitigation: re-request `@codex review` after updates.
+
 ---
 
 ## 3) Step-by-step setup in GitHub UI

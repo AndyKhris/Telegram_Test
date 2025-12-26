@@ -129,6 +129,17 @@ Create two short-lived test PRs to validate both paths:
      - `autofix-needed` removed
      - PR merged
 
+## PR behavior (quick scenarios)
+Reference (full details + edge cases): `github-actions/github-actions_setup.md`.
+
+Assuming the PR is same-repo and labeled `automerge`:
+1) No issues
+   - `ci-tests` passes + Codex connector replies “pass” → `codex-automerge` enables auto-merge → GitHub merges after required checks are green.
+2) CI fails but Codex passes
+   - `ci-tests-autofix-needed` adds `ci-failed` + `autofix-needed` → fix CI and push → CI reruns → GitHub merges once checks pass (if auto-merge was enabled).
+3) CI fails and Codex finds issues
+   - `autofix-needed` is applied → fix CI + review issues → push → re-request `@codex review` → merge after “pass” + green checks.
+
 ## Troubleshooting checklist
 - `codex-request-review` didn't comment:
   - Confirm `CODEX_REVIEW_TOKEN` exists and has Issues: write for this repo.
