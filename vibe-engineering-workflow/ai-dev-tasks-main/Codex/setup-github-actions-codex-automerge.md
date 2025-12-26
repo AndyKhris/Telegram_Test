@@ -106,6 +106,27 @@ Notes:
 If `EXECUTE=yes`:
 - Ask for confirmation, then write/update these files on `DEFAULT_BRANCH` (via git push or GitHub MCP write tools).
 
+## Hardcoded workflow settings (review before relying on auto-merge)
+These values are currently hardcoded in the workflow YAMLs; make sure they match your repo/user:
+
+- `.github/workflows/codex-automerge.yml`
+  - `allowedAuthors`: only PRs authored by these users are eligible for auto-merge.
+  - `requiredLabel`: PR must have label `automerge` to merge.
+  - Pass detection: either a `CODEX_AUTOMERGE_V1` block **or** the phrase “didn't find any major issues”.
+  - Merge method: tries GitHub auto-merge (SQUASH) first; falls back to immediate merge attempts (`squash`, then `merge`) if auto-merge is unavailable.
+- `.github/workflows/codex-request-review.yml`
+  - Secret name: `CODEX_REVIEW_TOKEN`.
+  - Dedupe rule: posts `@codex review` only once per PR (searches existing PR comments for `@codex review`).
+- `.github/workflows/ci-tests.yml`
+  - Status check name is derived from workflow name + job name: `CI Tests / ci-tests`.
+  - Installs dependencies from repo-root `requirements.txt`.
+- `.github/workflows/ci-tests-autofix-needed.yml`
+  - Watches the workflow named `CI Tests` (must match exactly).
+  - Adds labels `ci-failed` + `autofix-needed` only when the PR already has label `automerge` when CI completes.
+
+Note:
+- `codex-automerge` currently removes label `autofix-needed` when it sees a “pass” signal, even if `autofix-needed` was originally added due to CI failure. In that case `ci-failed` remains, and required checks still block merge until CI passes.
+
 ## Step 4) Verification (recommended)
 Create two short-lived test PRs to validate both paths:
 

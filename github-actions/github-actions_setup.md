@@ -132,32 +132,32 @@ Scenario 1) PR has no issues (CI passes + Codex review passes)
 
 Scenario 2) PR fails `ci-tests` but Codex review passes
 1. `ci-tests` runs and fails.
-2. If the PR has label `automerge`, **`ci-tests-autofix-needed`** adds:
-   - `ci-failed`
-   - `autofix-needed`
-3. Codex connector replies “pass” → **`codex-automerge`** enables auto-merge (or attempts merge).
+2. If the PR has label `automerge`, **`ci-tests-autofix-needed`** adds `ci-failed` + `autofix-needed`.
+3. Codex connector replies 'pass' -> **`codex-automerge`** enables auto-merge (or attempts merge).
+   - On pass, `codex-automerge` may remove `autofix-needed` (it treats it as a review-blocker label). `ci-failed` remains.
 4. Branch protection blocks the merge until `CI Tests / ci-tests` passes.
 5. You fix the CI failure and push to the **same PR branch**.
 6. `ci-tests` reruns and passes:
-   - `ci-tests-autofix-needed` removes `ci-failed` (it intentionally leaves `autofix-needed` unchanged).
+   - `ci-tests-autofix-needed` removes `ci-failed` (it leaves `autofix-needed` unchanged if it is still present).
 7. If auto-merge was enabled earlier, GitHub merges automatically once checks are green.
 
 Scenario 3) PR has issues in both `ci-tests` and Codex review
-1. `ci-tests` fails → if `automerge` is present, `ci-tests-autofix-needed` adds `ci-failed` + `autofix-needed`.
-2. Codex connector replies with feedback (non-pass) → **`codex-automerge`** adds/keeps `autofix-needed` and does not merge.
+1. `ci-tests` fails -> if `automerge` is present, `ci-tests-autofix-needed` adds `ci-failed` + `autofix-needed`.
+2. Codex connector replies with feedback (non-pass) -> **`codex-automerge`** adds/keeps `autofix-needed` and does not merge.
 3. You fix CI + the review issues, push to the same PR branch, and rerun local tests.
-4. Re-request Codex review by commenting `@codex review` again (the request workflow is intentionally “once per PR”).
-5. When Codex later replies “pass” and CI is green, auto-merge completes.
+4. Re-request Codex review by commenting `@codex review` again (the request workflow is intentionally 'once per PR').
+5. When Codex later replies 'pass' and CI is green, auto-merge completes.
 
 ### Edge cases / failure modes (and mitigations)
 
-- **Codex connector reacts with a 👍 but does not comment/review**: GitHub Actions cannot trigger on reactions, so `codex-automerge` never runs. Mitigation: ensure the connector is configured to post a comment/review response.
+- **Codex connector only reacts (e.g., thumbs-up) but does not comment/review**: GitHub Actions cannot trigger on reactions, so `codex-automerge` never runs. Mitigation: ensure the connector is configured to post a comment/review response.
 - **CI failed before you added `automerge`**: `ci-tests-autofix-needed` only labels on `CI Tests` completion *and* only if `automerge` is present at that time. Mitigation: after adding `automerge`, push a new commit (or re-run CI) so the labeling workflow runs again.
 - **`codex-request-review` only comments once per PR**: after pushing fixes you must re-comment `@codex review` manually (or via MCP) to get fresh feedback.
-- **Repo auto-merge disabled**: `codex-automerge` falls back to immediate merge attempts; with required checks this can fail noisily. Mitigation: enable “Allow auto-merge” in repo settings (recommended).
-- **Pass detection is conservative**: if the connector’s “looks good” phrasing changes and doesn’t match the supported patterns, `codex-automerge` will fail closed and add `autofix-needed`. Mitigation: update the regex in `.github/workflows/codex-automerge.yml`.
+- **Repo auto-merge disabled**: `codex-automerge` falls back to immediate merge attempts; with required checks this can fail noisily. Mitigation: enable "Allow auto-merge" in repo settings (recommended).
+- **Pass detection is conservative**: if the connector's "looks good" phrasing changes and doesn't match the supported patterns, `codex-automerge` will fail closed and add `autofix-needed`. Mitigation: update the regex in `.github/workflows/codex-automerge.yml`.
 - **PR author not allowlisted**: `codex-automerge` currently only auto-merges PRs authored by the configured allowlist. Mitigation: update `allowedAuthors` in `.github/workflows/codex-automerge.yml`.
-- **Required approvals + “dismiss stale approvals”**: if you require approvals and your settings dismiss them on new commits, auto-merge may wait for a new Codex review after you push fixes. Mitigation: re-request `@codex review` after updates.
+- **Required approvals + "dismiss stale approvals"**: if you require approvals and your settings dismiss them on new commits, auto-merge may wait for a new Codex review after you push fixes. Mitigation: re-request `@codex review` after updates.
+- **Empty review bodies**: if the connector submits an approval with an empty body, our current pass detection won't see it and will fail closed. Mitigation: ensure the connector posts a comment/review body, or extend `codex-automerge` to treat `review.state == APPROVED` as pass.
 
 ---
 
