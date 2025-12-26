@@ -178,6 +178,7 @@ Why:
 Important:
 - `ci-tests.yml` currently installs dependencies from a repo-root `requirements.txt` via `pip install -r requirements.txt`.
   - If your repo uses Poetry/`pyproject.toml`, update the workflow install step accordingly.
+- If `CI Tests / ci-tests` is not showing in the required checks dropdown yet, open a same-repo PR that triggers CI at least once, then refresh the Branch protection UI.
 
 ---
 

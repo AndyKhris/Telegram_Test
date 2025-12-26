@@ -67,6 +67,7 @@ These are one-time settings you must do in GitHub:
        - Select the CI check from `ci-tests.yml` (typically shown as `CI Tests / ci-tests`)
        - (Optional) Require 1 approval (Codex connector review counts if your setup enforces reviews)
      - With required checks enabled, `codex-automerge` should enable auto-merge after a clean Codex review, and GitHub will merge only after CI is green.
+     - If `CI Tests / ci-tests` is not listed yet, open a same-repo PR that runs the workflow once, then refresh the Branch protection UI.
 
 
 ## Step 3) Add workflow files in the correct location
