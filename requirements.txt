@@ -20,6 +20,3 @@ replicate>=0.22.0
 
 # Environment variables
 python-dotenv>=1.0.0
-
-# NOTE: Intentionally invalid dependency for GitHub Actions scenario testing.
-this-package-should-not-exist-codex-ci-test==0.0.1
