@@ -172,13 +172,13 @@ Why:
 
 ## 4) How we push code / create PRs (Codex CLI + GitHub MCP)
 
-Because `.git` operations are restricted in this environment, we used GitHub MCP write tools:
+Because `.git` operations can require escalation/approval in this environment, we prefer GitHub MCP write tools for "remote-first" changes:
 - `create_branch` to create a branch on GitHub
 - `create_or_update_file` to push a file change to that branch (or main)
 - `create_pull_request` to open a PR
 - `issue_write` to label the PR with `automerge`
 
-This makes the entire workflow fully remote-first (no local `git push` required).
+This keeps the workflow remote-first (no local `git push` required), but local git still works when needed (see Issue L).
 
 ---
 
@@ -304,6 +304,30 @@ Invalid workflow file: .github/workflows/codex-automerge.yml#L1
 
 **Fix**
 - Use `create_or_update_file` to update individual files (reliable for small edits), instead of batching via `push_files`.
+
+### Issue L - `git push` rejected (non-fast-forward) when publishing the final workflows to `main`
+**What happened**
+- A `git push origin main` attempt failed with:
+
+```
+! [rejected]        main -> main (fetch first)
+error: failed to push some refs
+```
+
+This happens when:
+- `origin/main` has commits you don't have locally, and/or
+- your local `main` has commits that are not on `origin/main` (diverged history).
+
+**Fix**
+- Fetch `origin/main`, then re-apply only the intended workflows/docs commit onto the current remote head:
+  - `git fetch origin`
+  - `git branch backup/local-main-pre-origin-sync-<date>`
+  - `git reset --hard origin/main`
+  - `git cherry-pick <commit_sha>`
+  - `git push origin main`
+
+**Why this fix**
+- It avoids accidentally pushing unrelated local-only commits when your local `main` is not in sync with the remote.
 
 ### Issue H - Workflow appeared to run but didn't comment (root cause: invalid workflow file)
 **What happened**
