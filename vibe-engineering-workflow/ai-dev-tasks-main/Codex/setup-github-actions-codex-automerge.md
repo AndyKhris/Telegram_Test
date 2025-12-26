@@ -85,6 +85,8 @@ Notes:
 - `codex-automerge` should:
   - If non-pass: add label `autofix-needed` (create label if missing) and do not merge
   - If pass: remove `autofix-needed` (if present) and merge (or enable auto-merge)
+- `ci-tests.yml` assumes a repo-root `requirements.txt` exists and will run `python -m pip install -r requirements.txt`.
+  - If you use Poetry/`pyproject.toml`, replace this with the appropriate install step.
 - `ci-tests-autofix-needed` should:
   - When `CI Tests` fails on a PR labeled `automerge`, add labels `autofix-needed` and `ci-failed` (create labels if missing)
 
