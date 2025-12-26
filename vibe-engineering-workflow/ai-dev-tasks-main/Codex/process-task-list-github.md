@@ -18,9 +18,10 @@ When invoked as a slash command, treat `$TASKS` (if provided) as the path to the
 - **Completion protocol:**
   1. When you finish a **sub-task**, immediately mark it as completed by changing `[ ]` to `[x]`.
   2. If **all** subtasks underneath a parent task are now `[x]`, follow this sequence:
-     - **First**: Run the relevant **unit tests** for that parent task (or the full unit suite if unsure).
+     - **First**: Run the repo’s formatters/linters (stack-appropriate; e.g., `python -m black .` and `python -m ruff check src tests`) and fix any issues.
+     - **Then**: Run the relevant **unit tests** for that parent task (or the full unit suite if unsure).
      - If this parent task is **Integration Tests** (final parent for a vertical feature), run the **integration tests** after unit tests.
-     - **Only if tests pass**: Stage changes (`git add .`).
+     - **Only if style checks + tests pass**: Stage changes (`git add .`).
      - **Clean up**: Remove any temporary files and temporary code before committing.
      - **Commit**: Use a descriptive conventional commit message, formatted as a single-line command using `-m` flags, e.g.:
 
@@ -56,7 +57,7 @@ After the PR exists, repeat the following loop until the PR is merged (or you st
    - Fetch CI/check status first:
      - `mcp__github__pull_request_read(method=get_status)`
    - If label `ci-failed` is present (or `CI Tests` is failing), prioritize fixing CI:
-     - Reproduce locally by running the same commands (typically `ruff check ...` and `pytest -q`).
+     - Reproduce locally by running the same commands (typically `python -m ruff check ...` and `python -m pytest -q`, plus any formatter checks your repo enforces).
      - Fix the failing tests/lint, then re-run locally until green.
    - Fetch the latest Codex connector feedback:
      - `mcp__github__pull_request_read(method=get_review_comments)` (line-level discussions)

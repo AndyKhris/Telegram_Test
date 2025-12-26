@@ -24,6 +24,8 @@ Use `$ARGUMENTS`. If no path provided, assume repo root.
    - Config risks: debug mode, permissive CORS, open binds without auth.
    - Dependency risks: outdated or known-vulnerable deps (if lockfiles exist).
    - Input handling: missing validation for external inputs.
+   - Injection (SQL/NoSQL/XSS/Command): review DB queries and any system command use for parameter binding/escaping. Flag any string concatenation/interpolation in queries or exec calls; if HTML is rendered, confirm output escaping/sanitization.
+   - External calls / SSRF: review outbound HTTP requests, webhooks, redirects, and URL fetches. Ensure allowlists (or safe URL parsing) + timeouts/limits; flag any direct use of user-controlled URLs/hosts in network calls.
 3) **Post-deploy checks (optional)**:
    - TLS/HTTPS required, security headers, public endpoints reachable.
    - Webhook endpoints protected/validated where applicable.
