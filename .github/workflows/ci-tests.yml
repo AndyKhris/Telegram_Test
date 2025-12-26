@@ -35,7 +35,7 @@ jobs:
 
       - name: Lint (ruff)
         run: |
-          python -m ruff check src tests
+          python -m ruff check .
 
       - name: Tests (pytest)
         env:
