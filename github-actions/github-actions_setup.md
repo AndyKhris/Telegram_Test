@@ -164,8 +164,25 @@ Note:
 - Our workflow tries to enable auto-merge first, but it can still merge directly via REST if auto-merge isn't enabled.
 
 ### Step 7 - Require CI on `main` (recommended)
-Configure branch protection so CI is a hard merge gate:
+Configure GitHub so the **`CI Tests` workflow is a hard merge gate**.
 
+Prerequisite (important):
+- GitHub may not show a workflow/job in the required checks picker until it has run at least once.
+- If `CI Tests / ci-tests` is missing, **push a same-repo PR (or a commit) that triggers `.github/workflows/ci-tests.yml` once**, wait for it to complete, then refresh the settings UI.
+
+✅ Option A: Using Branch rulesets (recommended as of 2025)
+1. Repo -> Settings -> Branches
+2. Click **Add branch ruleset**
+3. Ruleset name: `main-protection` (or similar)
+4. Target branches: `main`
+5. Enable:
+   - Require pull request before merging
+   - Require status checks to pass before merging
+6. Under required status checks, select the CI check:
+   - Usually shown as `CI Tests / ci-tests` (workflow name + job name)
+7. Save / Create
+
+Option B: Classic branch protection rules (legacy)
 1. Repo -> Settings -> Branches -> Branch protection rules
 2. Add (or edit) a rule for `main`:
    - Enable "Require a pull request before merging"

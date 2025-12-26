@@ -61,11 +61,24 @@ These are one-time settings you must do in GitHub:
    - Automatically delete head branches (cleanup):
      - Repo -> Settings -> General -> Pull Requests -> enable "Automatically delete head branches"
    - Branch protection / required checks (recommended default):
-     - Create a branch protection rule for `DEFAULT_BRANCH` with:
-       - Require a pull request before merging
-       - Require status checks to pass before merging
-       - Select the CI check from `ci-tests.yml` (typically shown as `CI Tests / ci-tests`)
-       - (Optional) Require 1 approval (Codex connector review counts if your setup enforces reviews)
+     - GitHub may not list a status check until it has run at least once:
+       - If `CI Tests / ci-tests` is missing, **push a same-repo PR (or a commit) that triggers `.github/workflows/ci-tests.yml` once**, wait for it to complete, then refresh the settings UI.
+     - ✅ Option A: Using Branch rulesets (recommended as of 2025)
+       - Repo -> Settings -> Branches -> Add branch ruleset
+       - Ruleset name: `main-protection` (or similar)
+       - Target branches: `DEFAULT_BRANCH`
+       - Enable:
+         - Require pull request before merging
+         - Require status checks to pass before merging
+       - Required status checks: select `CI Tests / ci-tests`
+       - Save / Create
+     - Option B: Classic branch protection rules (legacy)
+       - Repo -> Settings -> Branches -> Branch protection rules
+       - Add/edit rule for `DEFAULT_BRANCH`:
+         - Require a pull request before merging
+         - Require status checks to pass before merging
+         - Select `CI Tests / ci-tests`
+         - (Optional) Require 1 approval (Codex connector review counts if your setup enforces reviews)
      - With required checks enabled, `codex-automerge` should enable auto-merge after a clean Codex review, and GitHub will merge only after CI is green.
 
 
