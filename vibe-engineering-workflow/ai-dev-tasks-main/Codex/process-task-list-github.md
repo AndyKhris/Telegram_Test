@@ -1,4 +1,4 @@
----
+---
 description: Work through a task list one sub-task at a time, then open a PR and iterate until GitHub auto-merges
 argument-hint: TASKS=<path> [BASE=main]
 ---
