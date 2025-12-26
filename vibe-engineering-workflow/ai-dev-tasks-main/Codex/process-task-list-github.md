@@ -1,4 +1,4 @@
-﻿---
+---
 description: Work through a task list one sub-task at a time, then open a PR and iterate until GitHub auto-merges
 argument-hint: TASKS=<path> [BASE=main]
 ---
@@ -52,25 +52,35 @@ After the PR exists, repeat the following loop until the PR is merged (or you st
 1. Poll the PR using GitHub MCP `mcp__github__pull_request_read(method=get)`:
    - If `merged == true` -> **stop (done)**.
    - If the PR is closed without merge -> **stop and report**.
-2. If the PR has label `autofix-needed`:
-   - Fetch CI/check status first:
+2. If the PR has label `autofix-needed` **OR** `ci-failed` (even if `autofix-needed` is not present):
+   - Fetch CI/check status first (always):
      - `mcp__github__pull_request_read(method=get_status)`
-   - If label `ci-failed` is present (or `CI Tests` is failing), prioritize fixing CI:
-     - Reproduce locally by running the same commands (typically `ruff check ...` and `pytest -q`).
+   - If `CI Tests / ci-tests` (or other required checks) is failing, prioritize fixing CI:
+     - Reproduce locally by running the same commands as CI (typically `ruff check ...` and `pytest -q`).
      - Fix the failing tests/lint, then re-run locally until green.
-   - Fetch the latest Codex connector feedback:
-     - `mcp__github__pull_request_read(method=get_review_comments)` (line-level discussions)
-     - and/or `mcp__github__pull_request_read(method=get_comments)` / `method=get_reviews` (summary feedback)
-   - Fix the issue(s) locally.
-   - Run relevant tests locally.
-   - Commit and push to the **same PR branch**.
-   - Re-request review by posting `@codex review` again via `mcp__github__add_issue_comment`.
-     - Important: `codex-request-review` only posts `@codex review` once per PR, so the agent must re-request it after updates.
-   - Return to polling.
-3. If the PR is not merged and does not have `autofix-needed`:
-   - Also check CI/check status:
+     - Commit and push to the **same PR branch**.
+     - If your branch ruleset dismisses approvals on push, re-request review by posting `@codex review` again via `mcp__github__add_issue_comment`.
+     - Return to polling.
+   - If `ci-failed` is present but checks are green, remove/ignore the stale label (GitHub MCP: `mcp__github__issue_write` to drop `ci-failed`) and continue with Codex feedback.
+   - Otherwise, treat it as a Codex feedback failure (`autofix-needed` without CI failure):
+     - Fetch the latest Codex connector feedback:
+       - `mcp__github__pull_request_read(method=get_review_comments)` (line-level discussions)
+       - and/or `mcp__github__pull_request_read(method=get_comments)` / `method=get_reviews` (summary feedback)
+     - Fix the issue(s) locally and run relevant tests until green.
+     - Commit and push to the **same PR branch**.
+     - Re-request review by posting `@codex review` again via `mcp__github__add_issue_comment`.
+       - Important: `codex-request-review` only posts `@codex review` once per PR, so the agent must re-request it after updates.
+     - Return to polling.
+3. If the PR is not merged and does not have `autofix-needed` **and** does not have `ci-failed`:
+   - Check CI/check status:
      - `mcp__github__pull_request_read(method=get_status)`
-   - Keep polling until:
+   - If any required check (e.g., `CI Tests / ci-tests`) is failing, treat it like a CI failure even if labels are not present yet:
+     - Reproduce locally, fix, re-run locally until green, then commit + push, then return to polling.
+   - If CI is green but the PR is still not merged after a few polls:
+     - Check whether the Codex connector has responded yet:
+       - `mcp__github__pull_request_read(method=get_comments)` and look for `chatgpt-codex-connector[bot]`
+     - If there is no recent connector response, post a single `@codex review` via `mcp__github__add_issue_comment`, then continue waiting (do not spam).
+   - Otherwise, keep polling (with backoff) until:
      - CI is green AND the Codex connector responds (then `codex-automerge` will merge or apply `autofix-needed`), or
      - A timeout is reached.
 
